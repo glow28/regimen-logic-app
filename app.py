@@ -23,6 +23,8 @@ def generate_graphviz_diagram(logic_string):
     i = 0
 
     # Special case: logic starts with 'or AND'
+    # Fix: support multiple 'or' tokens after AND
+    
     if len(tokens) >= 2 and tokens[0] == 'or' and tokens[1] == 'AND':
         or_count = 0
         j = 2
@@ -99,7 +101,7 @@ def generate_graphviz_diagram(logic_string):
 
                 i += or_count + 1
             else:
-                for _ in range(2):
+                for _ in range(or_count + 1):
                     comp_node = new_node_id()
                     graph.node(comp_node, f'component: {next(drug_labels)}', shape='box')
                     graph.edge(reg_node, comp_node)
