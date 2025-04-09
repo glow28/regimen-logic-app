@@ -1,7 +1,7 @@
 from graphviz import Digraph
 import streamlit as st
 
-st.markdown("🧪 **Version: Nested logic update with OR-AND fix + plus-one logic**")
+st.markdown("🔪 **Version: Full nested + plus-one logic (OR and AND)**")
 
 def generate_graphviz_diagram(logic_string):
     tokens = logic_string.strip().split()
@@ -20,6 +20,7 @@ def generate_graphviz_diagram(logic_string):
         return f"N{node_count}"
 
     i = 0
+
     # Special case: logic starts with 'or AND'
     if len(tokens) >= 2 and tokens[0] == 'or' and tokens[1] == 'AND':
         regimen_count += 1
@@ -40,6 +41,7 @@ def generate_graphviz_diagram(logic_string):
             comp_node = new_node_id()
             graph.node(comp_node, f'component: {next(drug_labels)}', shape='box')
             graph.edge(nested_or, comp_node)
+
         i = 2
 
     while i < len(tokens):
@@ -56,7 +58,7 @@ def generate_graphviz_diagram(logic_string):
             graph.node(reg_node, 'Regimen selection: exactly-one (OR)', shape='box', style='filled', fillcolor='#1E3A8A', fontcolor='white')
             graph.edge('ROOT', reg_node, label='component')
 
-            for _ in range(or_count + 1):  # +1 because n ORs = n+1 drugs
+            for _ in range(or_count + 1):  # n ORs = n+1 components
                 comp_node = new_node_id()
                 graph.node(comp_node, f'component: {next(drug_labels)}', shape='box')
                 graph.edge(reg_node, comp_node)
@@ -69,6 +71,7 @@ def generate_graphviz_diagram(logic_string):
             graph.node(reg_node, 'Regimen selection: all (AND)', shape='box', style='filled', fillcolor='#8B0000', fontcolor='white')
             graph.edge('ROOT', reg_node, label='component')
 
+            # Count small ors for nested block
             or_count = 0
             j = i + 1
             while j < len(tokens) and tokens[j] == 'or':
@@ -76,7 +79,7 @@ def generate_graphviz_diagram(logic_string):
                 j += 1
 
             if or_count > 0:
-                # Flat component + nested OR
+                # Flat component + nested OR block
                 comp_node = new_node_id()
                 graph.node(comp_node, f'component: {next(drug_labels)}', shape='box')
                 graph.edge(reg_node, comp_node)
@@ -99,16 +102,21 @@ def generate_graphviz_diagram(logic_string):
                 i += 1
 
         elif token == 'and':
+            and_count = 1
+            while i + and_count < len(tokens) and tokens[i + and_count] == 'and':
+                and_count += 1
+
             regimen_count += 1
             reg_node = f"R{regimen_count}"
             graph.node(reg_node, 'Regimen selection: all (and)', shape='box', style='filled', fillcolor='#B91C1C', fontcolor='white')
             graph.edge('ROOT', reg_node, label='component')
-            for _ in range(2):
+
+            for _ in range(and_count + 1):
                 comp_node = new_node_id()
                 graph.node(comp_node, f'component: {next(drug_labels)}', shape='box')
                 graph.edge(reg_node, comp_node)
-            i += 1
 
+            i += and_count
         else:
             i += 1
 
@@ -116,12 +124,12 @@ def generate_graphviz_diagram(logic_string):
     graph.render(output_path, format='png', cleanup=False)
     return f'{output_path}.png'
 
-
 # --- Streamlit UI ---
 st.title("Regimen Logic Diagram Generator")
 logic_input = st.text_input("Enter logic string:", value="or or AND or")
 if logic_input:
     image_path = generate_graphviz_diagram(logic_input)
     st.image(image_path)
+
 
 
