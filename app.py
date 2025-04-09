@@ -1,10 +1,8 @@
-from pathlib import Path
 
-app_code = """
 from graphviz import Digraph
 import streamlit as st
 
-st.markdown("🔪 **Version 4: Full nested + plus-one logic (OR and AND)**")
+st.markdown("🔪 **Version 3.1: Corrected plus-one logic for all (OR, or, and)**")
 
 def generate_graphviz_diagram(logic_string):
     tokens = logic_string.strip().split()
@@ -26,6 +24,12 @@ def generate_graphviz_diagram(logic_string):
 
     # Special case: logic starts with 'or AND'
     if len(tokens) >= 2 and tokens[0] == 'or' and tokens[1] == 'AND':
+        or_count = 0
+        j = 2
+        while j < len(tokens) and tokens[j] == 'or':
+            or_count += 1
+            j += 1
+
         regimen_count += 1
         reg_node = f"R{regimen_count}"
         graph.node(reg_node, 'Regimen selection: all (AND)', shape='box', style='filled', fillcolor='#8B0000', fontcolor='white')
@@ -40,14 +44,7 @@ def generate_graphviz_diagram(logic_string):
         nested_or = new_node_id()
         graph.node(nested_or, 'Regimen selection: exactly-one (or)', shape='box', style='filled', fillcolor='#FACC15')
         graph.edge(reg_node, nested_or, label='component')
-
-        or_count = 1
-        j = 2
-        while j < len(tokens) and tokens[j] == 'or':
-            or_count += 1
-            j += 1
-
-        for _ in range(or_count + 1):
+        for _ in range(or_count + 2):  # +2 = one or AND and at least one or
             comp_node = new_node_id()
             graph.node(comp_node, f'component: {next(drug_labels)}', shape='box')
             graph.edge(nested_or, comp_node)
@@ -131,19 +128,9 @@ def generate_graphviz_diagram(logic_string):
     graph.render(output_path, format='png', cleanup=False)
     return f'{output_path}.png'
 
+# --- Streamlit UI ---
 st.title("Regimen Logic Diagram Generator")
-logic_input = st.text_input("Enter logic string:", value="or OR OR AND or or")
+logic_input = st.text_input("Enter logic string:", value="or or AND or")
 if logic_input:
     image_path = generate_graphviz_diagram(logic_input)
     st.image(image_path)
-"""
-
-# Save to file
-app_path = Path("/mnt/data/app.py")
-app_path.write_text(app_code)
-
-app_path.name
-
-
-
-
