@@ -1,7 +1,10 @@
-from graphviz import Digraph
+import shutil
+
+# Save updated app.py to the same directory as the Streamlit app
+updated_app_code = '''from graphviz import Digraph
 import streamlit as st
 
-st.markdown("🧪 **Version: Nested logic update with OR-AND fix + plus-one logic**")
+st.markdown("🧪 **Version 3: Nested logic update**")
 
 def generate_graphviz_diagram(logic_string):
     tokens = logic_string.strip().split()
@@ -123,5 +126,12 @@ logic_input = st.text_input("Enter logic string:", value="or or AND or")
 if logic_input:
     image_path = generate_graphviz_diagram(logic_input)
     st.image(image_path)
+'''
+
+with open("/mnt/data/app.py", "w") as f:
+    f.write(updated_app_code)
+
+"/mnt/data/app.py updated successfully."
+
 
 
