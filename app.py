@@ -17,7 +17,7 @@ if st.button("Generate Diagram"):
     graph.node('ROOT', 'Regimen selection: exactly-one (OR)', shape='box', style='filled', fillcolor='white', fontname='Helvetica')
 
     regimen_count = 0
-    node_counter = [0]  # Use mutable list to allow updates inside nested functions
+    node_counter = [0]
 
     def new_node_id():
         node_counter[0] += 1
@@ -94,6 +94,11 @@ if st.button("Generate Diagram"):
         return end_idx, end_idx
 
     i = 0
+
+    # ✅ Fix: Add placeholder if first token is OR (means implicit regimen before it)
+    if tokens and tokens[0] == 'OR':
+        parse_regimen(0)
+
     while i < len(tokens):
         if tokens[i] == 'OR':
             i += 1
