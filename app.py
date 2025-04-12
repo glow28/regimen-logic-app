@@ -1,15 +1,20 @@
-
 from graphviz import Digraph
 import streamlit as st
+import tempfile
+import os
 
-st.markdown("🔪 **Version 3.1: Corrected plus-one logic for all (OR, or, and)**")
+st.set_page_config(layout="centered")
+st.title("🧠 Regimen Logic Visualiser")
+st.markdown("Version 4.0 — handles **nested AND/or**, flat logic, and **single OR components (pink)**.")
 
-def generate_graphviz_diagram(logic_string):
+
+logic_string = st.text_input("Enter regimen logic (e.g. 'AND or OR OR')", "AND or OR OR OR or AND OR or AND")
+
+if st.button("Generate Diagram"):
     tokens = logic_string.strip().split()
     drug_labels = iter("ABCDEFGHIJKLMNOPQRSTUVWXYZ")
     graph = Digraph(format='png')
     graph.attr(rankdir='TB', size='10')
-
     graph.node('ROOT', 'Regimen selection: exactly-one (OR)', shape='box', style='filled', fillcolor='white', fontname='Helvetica')
 
     regimen_count = 0
@@ -20,117 +25,85 @@ def generate_graphviz_diagram(logic_string):
         node_count += 1
         return f"N{node_count}"
 
-    i = 0
+    def add_component_block(parent_node, label):
+        comp_node = new_node_id()
+        graph.node(comp_node, f'component: {label}', shape='box')
+        graph.edge(parent_node, comp_node)
 
-    # Special case: logic starts with 'or AND'
-    if len(tokens) >= 2 and tokens[0] == 'or' and tokens[1] == 'AND':
-        or_count = 0
-        j = 2
-        while j < len(tokens) and tokens[j] == 'or':
-            or_count += 1
-            j += 1
+    def add_flat_group(parent_node, keyword, count=2):
+        flat_node = new_node_id()
+        if keyword == 'and':
+            group_label = f"Regimen selection: all ({keyword})"
+            fill = '#B91C1C'
+        elif keyword == 'or' and count == 2:
+            group_label = f"Regimen selection: exactly-one ({keyword})"
+            fill = '#EC4899'  # pink
+        else:
+            group_label = f"Regimen selection: exactly-one ({keyword})"
+            fill = '#FACC15'
+        graph.node(flat_node, group_label, shape='box', style='filled', fillcolor=fill)
+        graph.edge(parent_node, flat_node, label='component')
+        for _ in range(count):
+            add_component_block(flat_node, next(drug_labels))
 
-        regimen_count += 1
-        reg_node = f"R{regimen_count}"
-        graph.node(reg_node, 'Regimen selection: all (AND)', shape='box', style='filled', fillcolor='#8B0000', fontcolor='white')
+    def add_nested_and_or(parent_node, position='start', count=2):
+        and_node = new_node_id()
+        graph.node(and_node, 'Regimen selection: all (AND)', shape='box', style='filled', fillcolor='#8B0000', fontcolor='white')
+        graph.edge(parent_node, and_node, label='component')
+
+        if position == 'start':
+            add_component_block(and_node, next(drug_labels))
+            nested_or = new_node_id()
+            graph.node(nested_or, 'Regimen selection: exactly-one (or)', shape='box', style='filled', fillcolor='#FACC15')
+            graph.edge(and_node, nested_or, label='component')
+            for _ in range(count):
+                add_component_block(nested_or, next(drug_labels))
+        elif position == 'end':
+            nested_or = new_node_id()
+            graph.node(nested_or, 'Regimen selection: exactly-one (or)', shape='box', style='filled', fillcolor='#FACC15')
+            graph.edge(and_node, nested_or, label='component')
+            for _ in range(count):
+                add_component_block(nested_or, next(drug_labels))
+            add_component_block(and_node, next(drug_labels))
+
+    def parse_regimen(start_idx):
+        end_idx = start_idx
+        while end_idx < len(tokens) and tokens[end_idx] != 'OR':
+            end_idx += 1
+        segment = tokens[start_idx:end_idx]
+        has_and = 'AND' in segment
+        has_or = 'or' in segment
+
+        reg_node = f"R{start_idx}"
+        regimen_label = 'Regimen selection: exactly-one (OR)'
+        graph.node(reg_node, regimen_label, shape='box', style='filled', fillcolor='#1E3A8A', fontcolor='white')
         graph.edge('ROOT', reg_node, label='component')
 
-        # Flat component
-        comp_node = new_node_id()
-        graph.node(comp_node, f'component: {next(drug_labels)}', shape='box')
-        graph.edge(reg_node, comp_node, label='component')
-
-        # Nested OR
-        nested_or = new_node_id()
-        graph.node(nested_or, 'Regimen selection: exactly-one (or)', shape='box', style='filled', fillcolor='#FACC15')
-        graph.edge(reg_node, nested_or, label='component')
-        for _ in range(or_count + 2):  # +2 = one or AND and at least one or
-            comp_node = new_node_id()
-            graph.node(comp_node, f'component: {next(drug_labels)}', shape='box')
-            graph.edge(nested_or, comp_node)
-
-        i = 2 + or_count
-
-    while i < len(tokens):
-        token = tokens[i]
-
-        if token == 'OR':
-            or_count = 1
-            while i + or_count < len(tokens) and tokens[i + or_count] == 'OR':
-                or_count += 1
-
-            regimen_count += 1
-            reg_node = f"R{regimen_count}"
-            graph.node(reg_node, 'Regimen selection: exactly-one (OR)', shape='box', style='filled', fillcolor='#1E3A8A', fontcolor='white')
-            graph.edge('ROOT', reg_node, label='component')
-
-            for _ in range(or_count + 1):
-                comp_node = new_node_id()
-                graph.node(comp_node, f'component: {next(drug_labels)}', shape='box')
-                graph.edge(reg_node, comp_node)
-
-            i += or_count
-
-        elif token == 'AND':
-            regimen_count += 1
-            reg_node = f"R{regimen_count}"
-            graph.node(reg_node, 'Regimen selection: all (AND)', shape='box', style='filled', fillcolor='#8B0000', fontcolor='white')
-            graph.edge('ROOT', reg_node, label='component')
-
-            or_count = 0
-            j = i + 1
-            while j < len(tokens) and tokens[j] == 'or':
-                or_count += 1
-                j += 1
-
-            if or_count > 0:
-                comp_node = new_node_id()
-                graph.node(comp_node, f'component: {next(drug_labels)}', shape='box')
-                graph.edge(reg_node, comp_node)
-
-                nested = new_node_id()
-                graph.node(nested, 'Regimen selection: exactly-one (or)', shape='box', style='filled', fillcolor='#FACC15')
-                graph.edge(reg_node, nested, label='component')
-
-                for _ in range(or_count + 1):
-                    comp_node = new_node_id()
-                    graph.node(comp_node, f'component: {next(drug_labels)}', shape='box')
-                    graph.edge(nested, comp_node)
-
-                i += or_count + 1
+        if has_and and has_or:
+            if segment.index('AND') < segment.index('or'):
+                add_nested_and_or(reg_node, position='start', count=segment.count('or') + 1)
             else:
-                for _ in range(2):
-                    comp_node = new_node_id()
-                    graph.node(comp_node, f'component: {next(drug_labels)}', shape='box')
-                    graph.edge(reg_node, comp_node)
-                i += 1
-
-        elif token == 'and':
-            and_count = 1
-            while i + and_count < len(tokens) and tokens[i + and_count] == 'and':
-                and_count += 1
-
-            regimen_count += 1
-            reg_node = f"R{regimen_count}"
-            graph.node(reg_node, 'Regimen selection: all (and)', shape='box', style='filled', fillcolor='#B91C1C', fontcolor='white')
-            graph.edge('ROOT', reg_node, label='component')
-
-            for _ in range(and_count + 1):
-                comp_node = new_node_id()
-                graph.node(comp_node, f'component: {next(drug_labels)}', shape='box')
-                graph.edge(reg_node, comp_node)
-
-            i += and_count
+                add_nested_and_or(reg_node, position='end', count=segment.count('or') + 1)
+        elif all(t == 'or' for t in segment):
+            add_flat_group(reg_node, 'or', len(segment) + 1)
+        elif all(t == 'and' for t in segment):
+            add_flat_group(reg_node, 'and', len(segment) + 1)
+        elif len(segment) == 1 and segment[0] in ['or', 'and']:
+            add_flat_group(reg_node, segment[0], 2)
         else:
+            add_flat_group(reg_node, 'or', 1)
+
+        return end_idx, end_idx
+
+    i = 0
+    while i < len(tokens):
+        if tokens[i] == 'OR':
             i += 1
+        i, _ = parse_regimen(i)
 
-    output_path = '/tmp/kg_dynamic_logic_diagram'
-    graph.render(output_path, format='png', cleanup=False)
-    return f'{output_path}.png'
+    with tempfile.TemporaryDirectory() as tmpdirname:
+        output_path = os.path.join(tmpdirname, 'regimen_logic')
+        graph.render(output_path, format='png', cleanup=True)
+        st.image(output_path + '.png', caption="Regimen Logic Diagram")
 
-# --- Streamlit UI ---
-st.title("Regimen Logic Diagram Generator")
-logic_input = st.text_input("Enter logic string:", value="or or AND or")
-if logic_input:
-    image_path = generate_graphviz_diagram(logic_input)
-    st.image(image_path)
+
