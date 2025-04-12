@@ -7,7 +7,6 @@ st.set_page_config(layout="centered")
 st.title("🧠 Regimen Logic Visualiser")
 st.markdown("Version 4.0 — handles **nested AND/or**, flat logic, and **single OR components (pink)**.")
 
-
 logic_string = st.text_input("Enter regimen logic (e.g. 'AND or OR OR')", "AND or OR OR OR or AND OR or AND")
 
 if st.button("Generate Diagram"):
@@ -18,12 +17,11 @@ if st.button("Generate Diagram"):
     graph.node('ROOT', 'Regimen selection: exactly-one (OR)', shape='box', style='filled', fillcolor='white', fontname='Helvetica')
 
     regimen_count = 0
-    node_count = 0
+    node_counter = [0]  # Use mutable list to allow updates inside nested functions
 
     def new_node_id():
-        nonlocal node_count
-        node_count += 1
-        return f"N{node_count}"
+        node_counter[0] += 1
+        return f"N{node_counter[0]}"
 
     def add_component_block(parent_node, label):
         comp_node = new_node_id()
@@ -105,5 +103,6 @@ if st.button("Generate Diagram"):
         output_path = os.path.join(tmpdirname, 'regimen_logic')
         graph.render(output_path, format='png', cleanup=True)
         st.image(output_path + '.png', caption="Regimen Logic Diagram")
+
 
 
